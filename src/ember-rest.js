@@ -211,7 +211,7 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
    Is this a new resource?
   */
   isNew: function() {
-    return Ember.empty(this._resourceId());
+    return Ember.isEmpty(this._resourceId());
   },
 
   /**
@@ -224,7 +224,7 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
     var url = this.resourceUrl,
         id = this._resourceId();
 
-    if (!Ember.empty(id))
+    if (!Ember.isEmpty(id))
       url += '/' + id;
 
     return url;
