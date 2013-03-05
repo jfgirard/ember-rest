@@ -29,7 +29,7 @@ if (Ember.ResourceAdapter === undefined) {
       Performs an XHR request with `jQuery.ajax()`. Calls `_prepareResourceRequest(params)` if defined.
     */
     _resourceRequest: function(params) {
-      params.url = this._resourceUrl();
+      params.url = params.url || this._resourceUrl();
       params.dataType = 'json';
 
       if (this._prepareResourceRequest !== undefined) {
