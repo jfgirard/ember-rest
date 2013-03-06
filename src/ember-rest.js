@@ -31,6 +31,13 @@ if (Ember.ResourceAdapter === undefined) {
     _resourceRequest: function(params) {
       params.url = params.url || this._resourceUrl();
       params.dataType = 'json';
+      //default to application/json
+      if(!params.contentType && (params.type === 'PUT' || params.type === 'POST')){
+        params.contentType = 'application/json';
+        if(typeof params.data === 'object'){
+          params.data = JSON.stringify(params.data);
+        }
+      }
 
       if (this._prepareResourceRequest !== undefined) {
         this._prepareResourceRequest(params);
