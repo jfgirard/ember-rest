@@ -284,10 +284,19 @@ Ember.ResourceController = Ember.ArrayController.extend(Ember.ResourceAdapter, {
       this.load(json[i]);
   },
 
-  /**
+ /**
     Clear this controller's contents (without deleting remote resources)
+    @param destroyObjects if true, destroy the ember object to better free the memory
   */
-  clearAll: function() {
+  clearAll: function(destroyObjects) {
+    if(destroyObjects){
+       var content = this.get('content');
+       if(content){
+          content.forEach(function(resource){
+            resource.destroy();
+          });
+       }
+    }
     this.set("content", []);
   },
 
