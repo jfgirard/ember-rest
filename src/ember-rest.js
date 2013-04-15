@@ -32,9 +32,9 @@ if (Ember.ResourceAdapter === undefined) {
       params.url = params.url || this._resourceUrl();
       params.dataType = 'json';
       //default to application/json
-      if(!params.contentType && (params.type === 'PUT' || params.type === 'POST')){
+      if (!params.contentType && (params.type === 'PUT' || params.type === 'POST')) {
         params.contentType = 'application/json';
-        if(typeof params.data === 'object'){
+        if (typeof params.data === 'object') {
           params.data = JSON.stringify(params.data);
         }
       }
@@ -43,7 +43,13 @@ if (Ember.ResourceAdapter === undefined) {
         this._prepareResourceRequest(params);
       }
 
-      return jQuery.ajax(params);
+      var request = jQuery.ajax(params);
+
+      if (this._postResourceRequest !== undefined) {
+        this._postResourceRequest(request);
+      }
+
+      return request;
     }
   });
 }
@@ -74,7 +80,7 @@ if (Ember.ResourceAdapter === undefined) {
 */
 Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
   resourceIdField: 'id',
-  resourceUrl:     Ember.required(),
+  resourceUrl: Ember.required(),
 
   /**
     Duplicate properties from another resource
@@ -88,7 +94,7 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
 
     if (props === undefined) props = this.resourceProperties;
 
-    for(var i = 0; i < props.length; i++) {
+    for (var i = 0; i < props.length; i++) {
       prop = props[i];
       this.set(prop, source.get(prop));
     }
@@ -117,12 +123,11 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
   */
   serialize: function() {
     var name = this.resourceName,
-        props = this.resourceProperties,
-        prop,
-        ret = {};
+      props = this.resourceProperties,
+      prop, ret = {};
 
     ret[name] = {};
-    for(var i = 0; i < props.length; i++) {
+    for (var i = 0; i < props.length; i++) {
       prop = props[i];
       ret[name][prop] = this.serializeProperty(prop);
     }
@@ -145,7 +150,7 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
   */
   deserialize: function(json) {
     Ember.beginPropertyChanges(this);
-    for(var prop in json) {
+    for (var prop in json) {
       if (json.hasOwnProperty(prop)) this.deserializeProperty(prop, json[prop]);
     }
     Ember.endPropertyChanges(this);
@@ -169,10 +174,11 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
   findResource: function() {
     var self = this;
 
-    return this._resourceRequest({type: 'GET'})
-      .done(function(json) {
-        self.deserialize(json);
-      });
+    return this._resourceRequest({
+      type: 'GET'
+    }).done(function(json) {
+      self.deserialize(json);
+    });
   },
 
   /**
@@ -192,26 +198,37 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
       var error = this.validate();
       if (error) {
         return {
-          fail: function(f) { f(error); return this; },
-          done: function() { return this; },
-          always: function(f) { f(); return this; }
+          fail: function(f) {
+            f(error);
+            return this;
+          },
+          done: function() {
+            return this;
+          },
+          always: function(f) {
+            f();
+            return this;
+          }
         };
       }
     }
 
-    return this._resourceRequest({type: this.isNew() ? 'POST' : 'PUT',
-                                  data: this.serialize()})
-      .done(function(json) {
-        // Update properties
-        if (json) self.deserialize(json);
-      });
+    return this._resourceRequest({
+      type: this.isNew() ? 'POST' : 'PUT',
+      data: this.serialize()
+    }).done(function(json) {
+      // Update properties
+      if (json) self.deserialize(json);
+    });
   },
 
   /**
     Delete resource
   */
   destroyResource: function() {
-    return this._resourceRequest({type: 'DELETE'});
+    return this._resourceRequest({
+      type: 'DELETE'
+    });
   },
 
   /**
@@ -229,10 +246,9 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
   */
   _resourceUrl: function() {
     var url = this.resourceUrl,
-        id = this._resourceId();
+      id = this._resourceId();
 
-    if (!Ember.isEmpty(id))
-      url += '/' + id;
+    if (!Ember.isEmpty(id)) url += '/' + id;
 
     return url;
   },
@@ -280,22 +296,22 @@ Ember.ResourceController = Ember.ArrayController.extend(Ember.ResourceAdapter, {
     Create and load `Ember.Resource` objects from a JSON array
   */
   loadAll: function(json) {
-    for (var i=0; i < json.length; i++)
-      this.load(json[i]);
+    for (var i = 0; i < json.length; i++)
+    this.load(json[i]);
   },
 
- /**
+  /**
     Clear this controller's contents (without deleting remote resources)
     @param destroyObjects if true, destroy the ember object to better free the memory
   */
   clearAll: function(destroyObjects) {
-    if(destroyObjects){
-       var content = this.get('content');
-       if(content){
-          content.forEach(function(resource){
-            resource.destroy();
-          });
-       }
+    if (destroyObjects) {
+      var content = this.get('content');
+      if (content) {
+        content.forEach(function(resource) {
+          resource.destroy();
+        });
+      }
     }
     this.set("content", []);
   },
@@ -306,11 +322,12 @@ Ember.ResourceController = Ember.ArrayController.extend(Ember.ResourceAdapter, {
   findAll: function() {
     var self = this;
 
-    return this._resourceRequest({type: 'GET'})
-      .done(function(json) {
-        self.clearAll();
-        self.loadAll(json);
-      });
+    return this._resourceRequest({
+      type: 'GET'
+    }).done(function(json) {
+      self.clearAll();
+      self.loadAll(json);
+    });
   },
 
   /**
@@ -335,8 +352,7 @@ Ember.ResourceController = Ember.ArrayController.extend(Ember.ResourceAdapter, {
             return m.properties.resourceUrl;
           }
         }
-      }
-      else {
+      } else {
         return rt.prototype.resourceUrl;
       }
     }
