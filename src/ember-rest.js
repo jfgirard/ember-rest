@@ -66,11 +66,11 @@ if (Ember.ResourceAdapter === undefined) {
         } else {
           error = {};
           error.status = err.status;
-          return error;
         }
       } else {
-        return err;
+        error = err;
       }
+      return error;
     }
   });
 }
