@@ -49,7 +49,28 @@ if (Ember.ResourceAdapter === undefined) {
         this._postResourceRequest(request);
       }
 
-      return request;
+      return request.then(null, this.parseAdapterError);
+    },
+
+    parseAdapterError: function(err) {
+      var error;
+      if (err.getAllResponseHeaders) {
+        var headers = err.getAllResponseHeaders();
+        if (headers.indexOf('Content-Type: application/json') !== -1) {
+          try {
+            error = JSON.parse(err.responseText);
+          } catch (e) {
+            error = {};
+          }
+          error.status = err.status;
+        } else {
+          error = {};
+          error.status = err.status;
+          return error;
+        }
+      } else {
+        return err;
+      }
     }
   });
 }
