@@ -298,14 +298,6 @@ Ember.ResourceController = Ember.ArrayController.extend(Ember.ResourceAdapter, {
   resourceType: Ember.required(),
 
   /**
-    @private
-  */
-  init: function() {
-    this._super();
-    this.clearAll();
-  },
-
-  /**
     Create and load a single `Ember.Resource` from JSON
   */
   load: function(json) {
@@ -335,7 +327,7 @@ Ember.ResourceController = Ember.ArrayController.extend(Ember.ResourceAdapter, {
       }
     }
     this.set("content", []);
-  },
+  }.on('init'),
 
   /**
     Replace this controller's contents with an request to `url`
