@@ -237,9 +237,9 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
     return this._resourceRequest({
       type: this.isNew() ? 'POST' : 'PUT',
       data: this.serialize()
-    }).done(function(json) {
+    }).done(function(json, statusText, jqXHR) {
       // Update properties
-      if (json) self.deserialize(json);
+      if (json) self.deserialize(json, jqXHR);
     });
   },
 
