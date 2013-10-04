@@ -361,7 +361,7 @@ Ember.ResourceController = Ember.ArrayController.extend(Ember.ResourceAdapter, {
       if (rt.prototype.resourceUrl === undefined) {
         for (var i = rt.PrototypeMixin.mixins.length - 1; i >= 0; i--) {
           var m = rt.PrototypeMixin.mixins[i];
-          if (m.properties !== undefined && m.properties.resourceUrl !== undefined) {
+          if (!Ember.isNone(m.properties) && m.properties.resourceUrl !== undefined) {
             return m.properties.resourceUrl;
           }
         }
