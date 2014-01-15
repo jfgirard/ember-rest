@@ -43,13 +43,26 @@ if (Ember.ResourceAdapter === undefined) {
         this._prepareResourceRequest(params);
       }
 
-      var request = jQuery.ajax(params);
+      var self = this;
 
-      if (this._postResourceRequest !== undefined) {
-        this._postResourceRequest(request);
-      }
+      //wrap the ajax request into a RSVP Promise
+      return new Ember.RSVP.Promise(function(resolve, reject) {
+        params.success = function(data) {
+          Ember.run(null, resolve, data);
+        };
 
-      return request.then(null, this.parseAdapterError);
+        params.error = function(jqXHR, status, error) {
+          Ember.run(null, reject, arguments);
+        }
+
+        //jQuery
+        var request = $.ajax(params);
+
+        if (self._postResourceRequest !== undefined) {
+          self._postResourceRequest(request);
+        }
+
+      }).then(null, this.parseAdapterError);
     },
 
     parseAdapterError: function(err) {
@@ -197,7 +210,7 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
 
     return this._resourceRequest({
       type: 'GET'
-    }).done(function(json) {
+    }).then(function(json) {
       self.deserialize(json);
     });
   },
@@ -218,26 +231,14 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
     if (this.validate !== undefined) {
       var error = this.validate();
       if (error) {
-        return {
-          fail: function(f) {
-            f(error);
-            return this;
-          },
-          done: function() {
-            return this;
-          },
-          always: function(f) {
-            f();
-            return this;
-          }
-        };
+        return Ember.RSVP.Promise.reject(error);
       }
     }
 
     return this._resourceRequest({
       type: this.isNew() ? 'POST' : 'PUT',
       data: this.serialize()
-    }).done(function(json, statusText, jqXHR) {
+    }).then(function(json, statusText, jqXHR) {
       // Update properties
       if (json) self.deserialize(json, jqXHR);
     });
@@ -310,7 +311,7 @@ Ember.ResourceController = Ember.ArrayController.extend(Ember.ResourceAdapter, {
   */
   loadAll: function(json) {
     for (var i = 0; i < json.length; i++)
-    this.load(json[i]);
+      this.load(json[i]);
   },
 
   /**
@@ -337,7 +338,7 @@ Ember.ResourceController = Ember.ArrayController.extend(Ember.ResourceAdapter, {
 
     return this._resourceRequest({
       type: 'GET'
-    }).done(function(json) {
+    }).then(function(json) {
       self.clearAll();
       self.loadAll(json);
     });
