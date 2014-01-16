@@ -52,7 +52,7 @@ if (Ember.ResourceAdapter === undefined) {
         };
 
         params.error = function(jqXHR, status, error) {
-          Ember.run(null, reject, arguments);
+          Ember.run(null, reject, jqXHR, status, error);
         }
 
         //jQuery
@@ -83,7 +83,8 @@ if (Ember.ResourceAdapter === undefined) {
       } else {
         error = err;
       }
-      return error;
+      //propagate the error
+      throw error;
     }
   });
 }
