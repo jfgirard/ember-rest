@@ -21,6 +21,48 @@
   Ember.ResourceController. You can override `_resourceRequest()` entirely, or just provide an implementation of
   `_prepareResourceRequest(params)` to adjust request params before `jQuery.ajax(params)`.
 */
+
+Ember.ajaxPromise = function(params, nativeAjaxTarget, nativeAjaxMethod) {
+  //wrap the ajax request into a RSVP Promise
+  return new Ember.RSVP.Promise(function(resolve, reject) {
+    params.success = function(data) {
+      Ember.run(null, resolve, data);
+    };
+
+    params.error = function(jqXHR, status, error) {
+      Ember.run(null, reject, jqXHR, status, error);
+    }
+
+    //jQuery
+    var request = $.ajax(params);
+
+    if (nativeAjaxMethod) {
+      nativeAjaxMethod.call(nativeAjaxTarget, request);
+    }
+
+  }).catch(function(err) {
+    var error;
+    if (err.getAllResponseHeaders) {
+      var headers = err.getAllResponseHeaders();
+      if (headers.indexOf('Content-Type: application/json') !== -1) {
+        try {
+          error = JSON.parse(err.responseText);
+        } catch (e) {
+          error = {};
+        }
+        error.status = err.status;
+      } else {
+        error = {};
+        error.status = err.status;
+      }
+    } else {
+      error = err;
+    }
+    //propagate the error
+    throw error;
+  });
+};
+
 if (Ember.ResourceAdapter === undefined) {
   Ember.ResourceAdapter = Ember.Mixin.create({
     /**
@@ -43,48 +85,7 @@ if (Ember.ResourceAdapter === undefined) {
         this._prepareResourceRequest(params);
       }
 
-      var self = this;
-
-      //wrap the ajax request into a RSVP Promise
-      return new Ember.RSVP.Promise(function(resolve, reject) {
-        params.success = function(data) {
-          Ember.run(null, resolve, data);
-        };
-
-        params.error = function(jqXHR, status, error) {
-          Ember.run(null, reject, jqXHR, status, error);
-        }
-
-        //jQuery
-        var request = $.ajax(params);
-
-        if (self._postResourceRequest !== undefined) {
-          self._postResourceRequest(request);
-        }
-
-      }).then(null, this.parseAdapterError);
-    },
-
-    parseAdapterError: function(err) {
-      var error;
-      if (err.getAllResponseHeaders) {
-        var headers = err.getAllResponseHeaders();
-        if (headers.indexOf('Content-Type: application/json') !== -1) {
-          try {
-            error = JSON.parse(err.responseText);
-          } catch (e) {
-            error = {};
-          }
-          error.status = err.status;
-        } else {
-          error = {};
-          error.status = err.status;
-        }
-      } else {
-        error = err;
-      }
-      //propagate the error
-      throw error;
+      return Ember.ajaxPromise(params, self, self._postResourceRequest);     
     }
   });
 }
