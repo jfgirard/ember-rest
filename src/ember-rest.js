@@ -213,7 +213,7 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
     return this._resourceRequest({
       type: 'GET'
     }).then(function(json) {
-      self.deserialize(json);
+      return self.deserialize(json);
     });
   },
 
@@ -242,7 +242,10 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
       data: this.serialize()
     }).then(function(json, statusText, jqXHR) {
       // Update properties
-      if (json) self.deserialize(json, jqXHR);
+      if (json){
+         self.deserialize(json, jqXHR);
+      }
+      return self;
     });
   },
 
@@ -343,6 +346,7 @@ Ember.ResourceController = Ember.ArrayController.extend(Ember.ResourceAdapter, {
     }).then(function(json) {
       self.clearAll();
       self.loadAll(json);
+      return self.get('content');
     });
   },
 
