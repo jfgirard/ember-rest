@@ -85,7 +85,7 @@ if (Ember.ResourceAdapter === undefined) {
         this._prepareResourceRequest(params);
       }
 
-      return Ember.ajaxPromise(params, self, self._postResourceRequest);     
+      return Ember.ajaxPromise(params, this, this._postResourceRequest);     
     }
   });
 }
