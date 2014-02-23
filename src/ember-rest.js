@@ -63,7 +63,7 @@ Ember.ajaxPromise = function(params, nativeAjaxTarget, nativeAjaxMethod) {
   });
 };
 
-if (Ember.ResourceAdapter === undefined) {
+if (!Ember.ResourceAdapter) {
   Ember.ResourceAdapter = Ember.Mixin.create({
     /**
       @private
