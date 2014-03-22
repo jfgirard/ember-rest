@@ -127,13 +127,14 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
   */
   duplicateProperties: function(source, props) {
     var prop;
-
+    Ember.beginPropertyChanges(this);
     if (props === undefined) props = this.resourceProperties;
 
     for (var i = 0; i < props.length; i++) {
       prop = props[i];
       this.set(prop, source.get(prop));
     }
+    Ember.endPropertyChanges(this);
   },
 
   /**
