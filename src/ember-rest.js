@@ -85,7 +85,7 @@ if (!Ember.ResourceAdapter) {
         this._prepareResourceRequest(params);
       }
 
-      return Ember.ajaxPromise(params, this, this._postResourceRequest);     
+      return Ember.ajaxPromise(params, this, this._postResourceRequest);
     }
   });
 }
@@ -126,13 +126,19 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
          defaults to `resourceProperties`
   */
   duplicateProperties: function(source, props) {
-    var prop;
+    var prop, propVal;
     Ember.beginPropertyChanges(this);
     if (props === undefined) props = this.resourceProperties;
 
     for (var i = 0; i < props.length; i++) {
       prop = props[i];
-      this.set(prop, source.get(prop));
+      propVal = source.get(prop);
+      if ($.isArray(propVal)) {
+        propVal = propVal.slice();
+      } else if (propVal !== null && typeof propVal === 'object') {
+        propVal = $.extend({}, propVal);
+      }
+      this.set(prop, propVal);
     }
     Ember.endPropertyChanges(this);
   },
@@ -200,7 +206,9 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
     Override to provide custom serialization
   */
   deserializeProperty: function(prop, value) {
-    this.set(prop, value);
+    if (typeof this.prop !== "function") {
+      this.set(prop, value);
+    }
   },
 
   /**
@@ -243,8 +251,8 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
       data: this.serialize()
     }).then(function(json, statusText, jqXHR) {
       // Update properties
-      if (json){
-         self.deserialize(json, jqXHR);
+      if (json) {
+        self.deserialize(json, jqXHR);
       }
       return self;
     });
