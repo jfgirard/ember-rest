@@ -23,71 +23,80 @@
 */
 
 Ember.ajaxPromise = function(params, nativeAjaxTarget, nativeAjaxMethod) {
-  //wrap the ajax request into a RSVP Promise
-  return new Ember.RSVP.Promise(function(resolve, reject) {
-    params.success = function(data) {
-      Ember.run(null, resolve, data);
-    };
-
-    params.error = function(jqXHR, status, error) {
-      Ember.run(null, reject, jqXHR, status, error);
+    if (!params.contentType) {
+        params.contentType = 'application/json';
     }
-
-    //jQuery
-    var request = $.ajax(params);
-
-    if (nativeAjaxMethod) {
-      nativeAjaxMethod.call(nativeAjaxTarget, request);
+    if (!params.dataType) {
+        params.dataType = 'json';
     }
+    //wrap the ajax request into a RSVP Promise
+    return new Ember.RSVP.Promise(function(resolve, reject) {
+        params.success = function(data) {
+            Ember.run(null, resolve, data);
+        };
 
-  }).catch(function(err) {
-    var error;
-    if (err.getAllResponseHeaders) {
-      var headers = err.getAllResponseHeaders();
-      if (headers.indexOf('Content-Type: application/json') !== -1) {
-        try {
-          error = JSON.parse(err.responseText);
-        } catch (e) {
-          error = {};
+        params.error = function(jqXHR, status, error) {
+            Ember.run(null, reject, jqXHR, status, error);
         }
-        error.status = err.status;
-      } else {
-        error = {};
-        error.status = err.status;
-      }
-    } else {
-      error = err;
-    }
-    //propagate the error
-    throw error;
-  });
+
+        //jQuery
+        var request = $.ajax(params);
+
+        if (nativeAjaxMethod) {
+            nativeAjaxMethod.call(nativeAjaxTarget, request);
+        }
+
+    }).
+    catch (function(err) {
+        var error;
+        if (err.responseJSON) {
+            error = err.responseJSON;
+        } else if (err.getAllResponseHeaders) {
+            var headers = err.getAllResponseHeaders();
+            if (headers.indexOf('Content-Type: application/json') !== -1) {
+                try {
+                    error = JSON.parse(err.responseText);
+                } catch (e) {
+                    error = {};
+                }
+                error.status = err.status;
+            } else {
+                error = {};
+                error.status = err.status;
+            }
+        } else {
+            error = err;
+        }
+        //propagate the error
+        throw error;
+    });
 };
 
 if (!Ember.ResourceAdapter) {
-  Ember.ResourceAdapter = Ember.Mixin.create({
-    /**
+    Ember.ResourceAdapter = Ember.Mixin.create({
+        /**
       @private
 
       Performs an XHR request with `jQuery.ajax()`. Calls `_prepareResourceRequest(params)` if defined.
     */
-    _resourceRequest: function(params) {
-      params.url = params.url || this._resourceUrl();
-      params.dataType = 'json';
-      //default to application/json
-      if (!params.contentType && (params.type === 'PUT' || params.type === 'POST')) {
-        params.contentType = 'application/json';
-        if (typeof params.data === 'object') {
-          params.data = JSON.stringify(params.data);
+        _resourceRequest: function(params) {
+            params.url = params.url || this._resourceUrl();
+            params.dataType = 'json';
+            //default to application/json
+            if (!params.contentType && (params.type === 'PUT' || params.type === 'POST')) {
+                params.contentType = 'application/json';
+                if (typeof params.data === 'object') {
+                    params.data = JSON.stringify(params.data);
+                }
+            }
+
+            if (this._prepareResourceRequest !== undefined) {
+                this._prepareResourceRequest(params);
+            }
+
+            return Ember.ajaxPromise(params, this, this._postResourceRequest);
         }
-      }
-
-      if (this._prepareResourceRequest !== undefined) {
-        this._prepareResourceRequest(params);
-      }
-
-      return Ember.ajaxPromise(params, this, this._postResourceRequest);
-    }
-  });
+    });
 }
 
 /**
@@ -115,118 +124,118 @@ if (!Ember.ResourceAdapter) {
   * `validate()`
 */
 Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
-  resourceIdField: 'id',
-  resourceUrl: Ember.required(),
+    resourceIdField: 'id',
+    resourceUrl: Ember.required(),
 
-  /**
+    /**
     Duplicate properties from another resource
 
     * `source` -- an Ember.Resource object
     * `props` -- the array of properties to be duplicated;
          defaults to `resourceProperties`
   */
-  duplicateProperties: function(source, props) {
-    var prop, propVal;
-    Ember.beginPropertyChanges(this);
-    if (props === undefined) props = this.resourceProperties;
+    duplicateProperties: function(source, props) {
+        var prop, propVal;
+        Ember.beginPropertyChanges(this);
+        if (props === undefined) props = this.resourceProperties;
 
-    for (var i = 0; i < props.length; i++) {
-      prop = props[i];
-      propVal = source.get(prop);
-      if ($.isArray(propVal)) {
-        propVal = propVal.slice();
-      } else if (propVal !== null && typeof propVal === 'object') {
-        propVal = $.extend({}, propVal);
-      }
-      this.set(prop, propVal);
-    }
-    Ember.endPropertyChanges(this);
-  },
+        for (var i = 0; i < props.length; i++) {
+            prop = props[i];
+            propVal = source.get(prop);
+            if ($.isArray(propVal)) {
+                propVal = propVal.slice();
+            } else if (propVal !== null && typeof propVal === 'object') {
+                propVal = $.extend({}, propVal);
+            }
+            this.set(prop, propVal);
+        }
+        Ember.endPropertyChanges(this);
+    },
 
-  /**
+    /**
     Create a copy of this resource
 
     Needed to implement Ember.Copyable
 
     REQUIRED: `resourceProperties`
   */
-  copy: function(deep) {
-    var c = this.constructor.create();
-    c.duplicateProperties(this);
-    c.set(this.resourceIdField, this.get(this.resourceIdField));
-    return c;
-  },
+    copy: function(deep) {
+        var c = this.constructor.create();
+        c.duplicateProperties(this);
+        c.set(this.resourceIdField, this.get(this.resourceIdField));
+        return c;
+    },
 
-  /**
+    /**
     Generate this resource's JSON representation
 
     Override this or `serializeProperty` to provide custom serialization
 
     REQUIRED: `resourceProperties` and `resourceName` (see note above)
   */
-  serialize: function() {
-    var name = this.resourceName,
-      props = this.resourceProperties,
-      prop, ret = {};
+    serialize: function() {
+        var name = this.resourceName,
+            props = this.resourceProperties,
+            prop, ret = {};
 
-    ret[name] = {};
-    for (var i = 0; i < props.length; i++) {
-      prop = props[i];
-      ret[name][prop] = this.serializeProperty(prop);
-    }
-    return ret;
-  },
+        ret[name] = {};
+        for (var i = 0; i < props.length; i++) {
+            prop = props[i];
+            ret[name][prop] = this.serializeProperty(prop);
+        }
+        return ret;
+    },
 
-  /**
+    /**
     Generate an individual property's JSON representation
 
     Override to provide custom serialization
   */
-  serializeProperty: function(prop) {
-    return this.get(prop);
-  },
+    serializeProperty: function(prop) {
+        return this.get(prop);
+    },
 
-  /**
+    /**
     Set this resource's properties from JSON
 
     Override this or `deserializeProperty` to provide custom deserialization
   */
-  deserialize: function(json) {
-    Ember.beginPropertyChanges(this);
-    for (var prop in json) {
-      if (json.hasOwnProperty(prop)) this.deserializeProperty(prop, json[prop]);
-    }
-    Ember.endPropertyChanges(this);
-    return this;
-  },
+    deserialize: function(json) {
+        Ember.beginPropertyChanges(this);
+        for (var prop in json) {
+            if (json.hasOwnProperty(prop)) this.deserializeProperty(prop, json[prop]);
+        }
+        Ember.endPropertyChanges(this);
+        return this;
+    },
 
-  /**
+    /**
     Set an individual property from its value in JSON
 
     Override to provide custom serialization
   */
-  deserializeProperty: function(prop, value) {
-    if (typeof this.prop !== "function") {
-      this.set(prop, value);
-    }
-  },
+    deserializeProperty: function(prop, value) {
+        if (typeof this.prop !== "function") {
+            this.set(prop, value);
+        }
+    },
 
-  /**
+    /**
     Request resource and deserialize
 
     REQUIRED: `id`
   */
-  findResource: function() {
-    var self = this;
+    findResource: function() {
+        var self = this;
 
-    return this._resourceRequest({
-      type: 'GET'
-    }).then(function(json) {
-      return self.deserialize(json);
-    });
-  },
+        return this._resourceRequest({
+            type: 'GET'
+        }).then(function(json) {
+            return self.deserialize(json);
+        });
+    },
 
-  /**
+    /**
     Create (if new) or update (if existing) record
 
     Will call validate() if defined for this record
@@ -236,67 +245,67 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
 
     REQUIRED: `properties` and `name` (see note above)
   */
-  saveResource: function() {
-    var self = this;
+    saveResource: function() {
+        var self = this;
 
-    if (this.validate !== undefined) {
-      var error = this.validate();
-      if (error) {
-        return Ember.RSVP.Promise.reject(error);
-      }
-    }
+        if (this.validate !== undefined) {
+            var error = this.validate();
+            if (error) {
+                return Ember.RSVP.Promise.reject(error);
+            }
+        }
 
-    return this._resourceRequest({
-      type: this.isNew() ? 'POST' : 'PUT',
-      data: this.serialize()
-    }).then(function(json, statusText, jqXHR) {
-      // Update properties
-      if (json) {
-        self.deserialize(json, jqXHR);
-      }
-      return self;
-    });
-  },
+        return this._resourceRequest({
+            type: this.isNew() ? 'POST' : 'PUT',
+            data: this.serialize()
+        }).then(function(json, statusText, jqXHR) {
+            // Update properties
+            if (json) {
+                self.deserialize(json, jqXHR);
+            }
+            return self;
+        });
+    },
 
-  /**
+    /**
     Delete resource
   */
-  destroyResource: function() {
-    return this._resourceRequest({
-      type: 'DELETE'
-    });
-  },
+    destroyResource: function() {
+        return this._resourceRequest({
+            type: 'DELETE'
+        });
+    },
 
-  /**
+    /**
    Is this a new resource?
   */
-  isNew: function() {
-    return Ember.isEmpty(this._resourceId());
-  },
+    isNew: function() {
+        return Ember.isEmpty(this._resourceId());
+    },
 
-  /**
+    /**
     @private
 
     The URL for this resource, based on `resourceUrl` and `_resourceId()` (which will be
       undefined for new resources).
   */
-  _resourceUrl: function() {
-    var url = this.resourceUrl,
-      id = this._resourceId();
+    _resourceUrl: function() {
+        var url = this.resourceUrl,
+            id = this._resourceId();
 
-    if (!Ember.isEmpty(id)) url += '/' + id;
+        if (!Ember.isEmpty(id)) url += '/' + id;
 
-    return url;
-  },
+        return url;
+    },
 
-  /**
+    /**
     @private
 
     The id for this resource.
   */
-  _resourceId: function() {
-    return this.get(this.resourceIdField);
-  }
+    _resourceId: function() {
+        return this.get(this.resourceIdField);
+    }
 });
 
 /**
@@ -310,56 +319,56 @@ Ember.Resource = Ember.Object.extend(Ember.ResourceAdapter, Ember.Copyable, {
        will default to the `resourceUrl` for `resourceType`
 */
 Ember.ResourceController = Ember.ArrayController.extend(Ember.ResourceAdapter, {
-  resourceType: Ember.required(),
+    resourceType: Ember.required(),
 
-  /**
+    /**
     Create and load a single `Ember.Resource` from JSON
   */
-  load: function(json) {
-    var resource = this.get('resourceType').create().deserialize(json);
-    this.pushObject(resource);
-  },
+    load: function(json) {
+        var resource = this.get('resourceType').create().deserialize(json);
+        this.pushObject(resource);
+    },
 
-  /**
+    /**
     Create and load `Ember.Resource` objects from a JSON array
   */
-  loadAll: function(json) {
-    for (var i = 0; i < json.length; i++)
-      this.load(json[i]);
-  },
+    loadAll: function(json) {
+        for (var i = 0; i < json.length; i++)
+            this.load(json[i]);
+    },
 
-  /**
+    /**
     Clear this controller's contents (without deleting remote resources)
     @param keepObjectsAlive if true, do NOT destroy the ember objects
   */
-  clearAll: function(keepObjectsAlive) {
-    if (!keepObjectsAlive) {
-      var content = this.get('content');
-      if (content) {
-        content.forEach(function(resource) {
-          resource.destroy();
-        });
-      }
-    }
-    this.set("content", []);
-  }.on('init'),
+    clearAll: function(keepObjectsAlive) {
+        if (!keepObjectsAlive) {
+            var content = this.get('content');
+            if (content) {
+                content.forEach(function(resource) {
+                    resource.destroy();
+                });
+            }
+        }
+        this.set("content", []);
+    }.on('init'),
 
-  /**
+    /**
     Replace this controller's contents with an request to `url`
   */
-  findAll: function() {
-    var self = this;
+    findAll: function() {
+        var self = this;
 
-    return this._resourceRequest({
-      type: 'GET'
-    }).then(function(json) {
-      self.clearAll();
-      self.loadAll(json);
-      return self.get('content');
-    });
-  },
+        return this._resourceRequest({
+            type: 'GET'
+        }).then(function(json) {
+            self.clearAll();
+            self.loadAll(json);
+            return self.get('content');
+        });
+    },
 
-  /**
+    /**
     @private
 
     Base URL for requests
@@ -367,24 +376,24 @@ Ember.ResourceController = Ember.ArrayController.extend(Ember.ResourceAdapter, {
     Will use the `resourceUrl` set for this controller, or if that's missing,
     the `resourceUrl` specified for `resourceType`.
   */
-  _resourceUrl: function() {
-    if (this.resourceUrl === undefined) {
-      // If `resourceUrl` is not defined for this controller, there are a couple
-      // ways to retrieve it from the resource. If a resource has been instantiated,
-      // then it can be retrieved from the resource's prototype. Otherwise, we need
-      // to loop through the mixins for the prototype to get the resourceUrl.
-      var rt = this.get('resourceType');
-      if (rt.prototype.resourceUrl === undefined) {
-        for (var i = rt.PrototypeMixin.mixins.length - 1; i >= 0; i--) {
-          var m = rt.PrototypeMixin.mixins[i];
-          if (!Ember.isNone(m.properties) && m.properties.resourceUrl !== undefined) {
-            return m.properties.resourceUrl;
-          }
+    _resourceUrl: function() {
+        if (this.resourceUrl === undefined) {
+            // If `resourceUrl` is not defined for this controller, there are a couple
+            // ways to retrieve it from the resource. If a resource has been instantiated,
+            // then it can be retrieved from the resource's prototype. Otherwise, we need
+            // to loop through the mixins for the prototype to get the resourceUrl.
+            var rt = this.get('resourceType');
+            if (rt.prototype.resourceUrl === undefined) {
+                for (var i = rt.PrototypeMixin.mixins.length - 1; i >= 0; i--) {
+                    var m = rt.PrototypeMixin.mixins[i];
+                    if (!Ember.isNone(m.properties) && m.properties.resourceUrl !== undefined) {
+                        return m.properties.resourceUrl;
+                    }
+                }
+            } else {
+                return rt.prototype.resourceUrl;
+            }
         }
-      } else {
-        return rt.prototype.resourceUrl;
-      }
+        return this.resourceUrl;
     }
-    return this.resourceUrl;
-  }
 });
