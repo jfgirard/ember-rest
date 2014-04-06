@@ -51,6 +51,7 @@ Ember.ajaxPromise = function(params, nativeAjaxTarget, nativeAjaxMethod) {
         var error;
         if (err.responseJSON) {
             error = err.responseJSON;
+            error.status = err.status;
         } else if (err.getAllResponseHeaders) {
             var headers = err.getAllResponseHeaders();
             if (headers.indexOf('Content-Type: application/json') !== -1) {
